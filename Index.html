@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Life OS Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0A0A0F; color: #E8E8F0; font-family: 'DM Sans', 'Segoe UI', sans-serif; }
+  ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: #111; } ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+  .habit-btn { transition: all 0.2s ease; cursor: pointer; border: none; }
+  .habit-btn:hover { transform: scale(1.05); }
+  .nav-btn { transition: all 0.2s; cursor: pointer; border: none; background: none; }
+  .card { background: #13131A; border: 1px solid #1E1E2E; border-radius: 16px; }
+  input, select { outline: none; font-family: inherit; }
+  .cal-day:hover { background: #1E1E2E !important; cursor: pointer; }
+  .glow-orange { box-shadow: 0 0 20px rgba(255,107,53,0.15); }
+  .glow-teal { box-shadow: 0 0 20px rgba(78,205,196,0.15); }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-in { animation: fadeIn 0.3s ease; }
+  .del-btn:hover { color: #FF6B6B !important; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+const DEFAULT_HABITS = [
+  { id: "gym", label: "Gimnasio", icon: "🏋️", color: "#FF6B35" },
+  { id: "stretch", label: "Estirar", icon: "🧘", color: "#4ECDC4" },
+  { id: "sport", label: "Deporte", icon: "🏊", color: "#45B7D1" },
+  { id: "read", label: "Leer", icon: "📚", color: "#96CEB4" },
+  { id: "projects", label: "Proyectos", icon: "⚡", color: "#FFEAA7" },
+  { id: "entrepreneurship", label: "Emprendimiento", icon: "🚀", color: "#DDA0DD" },
+  { id: "platform", label: "Plataforma", icon: "💻", color: "#98D8C8" },
+  { id: "meditation", label: "Meditación", icon: "🧠", color: "#F7DC6F" },
+  { id: "nutrition", label: "Nutrición", icon: "🥗", color: "#82E0AA" },
+  { id: "sleep", label: "Dormir 8h", icon: "😴", color: "#AED6F1" },
+  { id: "water", label: "Hidratación", icon: "💧", color: "#5DADE2" },
+  { id: "trading", label: "Trading", icon: "📈", color: "#F0B27A" },
+];
+
+const DEFAULT_INCOME = [
+  { id: "src1", label: "Trabajo", icon: "💼", color: "#4ECDC4" },
+  { id: "src2", label: "Freelance", icon: "💻", color: "#FF6B35" },
+  { id: "src3", label: "Inversiones", icon: "📈", color: "#F0B27A" },
+  { id: "src4", label: "Otro", icon: "💰", color: "#DDA0DD" },
+];
+
+const COLORS = ["#FF6B35","#4ECDC4","#45B7D1","#96CEB4","#FFEAA7","#DDA0DD","#98D8C8","#F7DC6F","#82E0AA","#AED6F1","#5DADE2","#F0B27A","#FF6B6B","#06C167"];
+const EMOJIS = ["🏋️","🧘","🏊","📚","⚡","🚀","💻","🧠","🥗","😴","💧","📈","🎯","🏃","🎨","✍️","🎸","💪","🌿","🍎","📖","💼","🔑","🚙","💰","🌙","☀️","🏆","🎮","🏄"];
+const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const DAYS = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+
+const getDaysInMonth = (y,m) => new Date(y,m+1,0).getDate();
+const getFirstDay = (y,m) => new Date(y,m,1).getDay();
+const fmtDate = (d) => d.toISOString().split("T")[0];
+const today = fmtDate(new Date());
+const uid = () => Math.random().toString(36).substr(2,9);
+
+function App() {
+  const [view, setView] = React.useState("daily");
+  const [selDate, setSelDate] = React.useState(today);
+  const [trackData, setTrackData] = React.useState({});
+  const [habits, setHabits] = React.useState(DEFAULT_HABITS);
+  const [incSrc, setIncSrc] = React.useState(DEFAULT_INCOME);
+  const [goal, setGoal] = React.useState(2000);
+  const [appName, setAppName] = React.useState("Life OS");
+  const [addExp, setAddExp] = React.useState(false);
+  const [addInc, setAddInc] = React.useState(false);
+  const [expForm, setExpForm] = React.useState({amount:"",note:""});
+  const [incForm, setIncForm] = React.useState({source:"",amount:"",note:""});
+  const [curMonth, setCurMonth] = React.useState(new Date().getMonth());
+  const [curYear, setCurYear] = React.useState(new Date().getFullYear());
+  const [stTab, setStTab] = React.useState("habits");
+  const [newH, setNewH] = React.useState({label:"",icon:"🎯",color:"#FF6B35"});
+  const [newS, setNewS] = React.useState({label:"",icon:"💰",color:"#4ECDC4"});
+  const [editH, setEditH] = React.useState(null);
+  const [editS, setEditS] = React.useState(null);
+
+  React.useEffect(() => {
+    try {
+      const s = localStorage.getItem("lifeosv2");
+      if (s) {
+        const p = JSON.parse(s);
+        if (p.trackData) setTrackData(p.trackData);
+        if (p.habits) setHabits(p.habits);
+        if (p.incSrc) setIncSrc(p.incSrc);
+        if (p.goal) setGoal(p.goal);
+        if (p.appName) setAppName(p.appName);
+      }
+    } catch(e) {}
+  }, []);
+
+  const persist = (patch) => {
+    const next = { trackData, habits, incSrc, goal, appName, ...patch };
+    if (patch.trackData !== undefined) setTrackData(patch.trackData);
+    if (patch.habits !== undefined) setHabits(patch.habits);
+    if (patch.incSrc !== undefined) setIncSrc(patch.incSrc);
+    if (patch.goal !== undefined) setGoal(patch.goal);
+    if (patch.appName !== undefined) setAppName(patch.appName);
+    localStorage.setItem("lifeosv2", JSON.stringify(next));
+  };
+
+  const getDay = (d) => trackData[d] || {habits:{},expenses:[],incomes:[]};
+  const saveDay = (d, val) => persist({ trackData: {...trackData,[d]:val} });
+
+  const toggleHabit = (date, hid) => {
+    const d = getDay(date);
+    saveDay(date, {...d, habits:{...d.habits,[hid]:!d.habits[hid]}});
+  };
+  const doAddExp = () => {
+    if (!expForm.amount) return;
+    const d = getDay(selDate);
+    saveDay(selDate, {...d, expenses:[...(d.expenses||[]),{...expForm,amount:parseFloat(expForm.amount),id:Date.now()}]});
+    setExpForm({amount:"",note:""}); setAddExp(false);
+  };
+  const doAddInc = () => {
+    if (!incForm.amount) return;
+    const d = getDay(selDate);
+    const src = incForm.source || incSrc[0]?.id || "";
+    saveDay(selDate, {...d, incomes:[...(d.incomes||[]),{...incForm,source:src,amount:parseFloat(incForm.amount),id:Date.now()}]});
+    setIncForm({source:"",amount:"",note:""}); setAddInc(false);
+  };
+  const delExp = (date,id) => { const d=getDay(date); saveDay(date,{...d,expenses:d.expenses.filter(e=>e.id!==id)}); };
+  const delInc = (date,id) => { const d=getDay(date); saveDay(date,{...d,incomes:d.incomes.filter(i=>i.id!==id)}); };
+
+  const addHabit = () => {
+    if (!newH.label.trim()) return;
+    persist({habits:[...habits,{id:uid(),label:newH.label,icon:newH.icon,color:newH.color}]});
+    setNewH({label:"",icon:"🎯",color:"#FF6B35"});
+  };
+  const delHabit = (id) => persist({habits:habits.filter(h=>h.id!==id)});
+  const updHabit = (id,f,v) => persist({habits:habits.map(h=>h.id===id?{...h,[f]:v}:h)});
+  const addSrc = () => {
+    if (!newS.label.trim()) return;
+    persist({incSrc:[...incSrc,{id:uid(),label:newS.label,icon:newS.icon,color:newS.color}]});
+    setNewS({label:"",icon:"💰",color:"#4ECDC4"});
+  };
+  const delSrc = (id) => persist({incSrc:incSrc.filter(s=>s.id!==id)});
+  const updSrc = (id,f,v) => persist({incSrc:incSrc.map(s=>s.id===id?{...s,[f]:v}:s)});
+
+  const exportAll = () => {
+    const blob = new Blob([JSON.stringify({trackData,habits,incSrc,goal,appName},null,2)],{type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href=url; a.download=`lifeos-${today}.json`; a.click();
+    URL.revokeObjectURL(url);
+  };
+  const importAll = (e) => {
+    const file=e.target.files[0]; if(!file) return;
+    const reader=new FileReader();
+    reader.onload=(ev)=>{
+      try {
+        const p=JSON.parse(ev.target.result);
+        persist({trackData:p.trackData||{},habits:p.habits||DEFAULT_HABITS,incSrc:p.incSrc||DEFAULT_INCOME,goal:p.goal||2000,appName:p.appName||"Life OS"});
+        alert("✅ Importado correctamente");
+      } catch { alert("❌ Archivo no válido"); }
+    };
+    reader.readAsText(file);
+  };
+
+  const mDates = Array.from({length:getDaysInMonth(curYear,curMonth)},(_,i)=>fmtDate(new Date(curYear,curMonth,i+1)));
+  const mData = mDates.map(d=>trackData[d]||{habits:{},expenses:[],incomes:[]});
+  const mExp = mData.reduce((s,d)=>s+(d.expenses||[]).reduce((a,e)=>a+e.amount,0),0);
+  const mInc = mData.reduce((s,d)=>s+(d.incomes||[]).reduce((a,i)=>a+i.amount,0),0);
+  const mSav = mInc-mExp;
+  const hRate = (id) => mDates.length?Math.round((mDates.filter(d=>trackData[d]?.habits?.[id]).length/mDates.length)*100):0;
+  const dExp = mDates.map(d=>({date:d,day:new Date(d+"T12:00:00").getDate(),total:(trackData[d]?.expenses||[]).reduce((s,e)=>s+e.amount,0)}));
+
+  const getWeek = (ds) => {
+    const dt=new Date(ds),dy=dt.getDay(),mon=new Date(dt);
+    mon.setDate(dt.getDate()-(dy===0?6:dy-1));
+    return Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return fmtDate(d);});
+  };
+  const wDates = getWeek(selDate);
+  const dayD = getDay(selDate);
+  const dExpTot = (dayD.expenses||[]).reduce((s,e)=>s+e.amount,0);
+  const dIncTot = (dayD.incomes||[]).reduce((s,i)=>s+i.amount,0);
+  const dHabits = habits.filter(h=>dayD.habits?.[h.id]).length;
+  const fDay = getFirstDay(curYear,curMonth);
+  const dInMon = getDaysInMonth(curYear,curMonth);
+
+  const iS = { background:"#1A1A25",border:"1px solid #333",borderRadius:8,padding:"8px 12px",color:"#E8E8F0",fontSize:13,width:"100%" };
+
+  const Header = () => (
+    <div style={{background:"linear-gradient(135deg,#13131A,#0A0A0F)",borderBottom:"1px solid #1E1E2E",padding:"16px 24px",position:"sticky",top:0,zIndex:100}}>
+      <div style={{maxWidth:900,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+        <div>
+          <div style={{fontSize:11,color:"#666",fontWeight:600,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:2}}>Dashboard Personal</div>
+          <div style={{fontSize:20,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif",background:"linear-gradient(90deg,#FF6B35,#4ECDC4)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>{appName}</div>
+        </div>
+        <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+          {["daily","weekly","monthly"].map(v=>(
+            <button key={v} className="nav-btn" onClick={()=>setView(v)} style={{padding:"7px 14px",borderRadius:10,fontSize:12,fontWeight:600,color:view===v?"#0A0A0F":"#666",background:view===v?"linear-gradient(135deg,#FF6B35,#FF8C5A)":"#1A1A25",border:view===v?"none":"1px solid #1E1E2E"}}>
+              {v==="daily"?"Hoy":v==="weekly"?"Semana":"Mes"}
+            </button>
+          ))}
+          <button className="nav-btn" onClick={()=>setView("settings")} style={{width:32,height:32,borderRadius:10,background:view==="settings"?"#FF6B3530":"#1A1A25",border:`1px solid ${view==="settings"?"#FF6B35":"#333"}`,color:"#888",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>⚙️</button>
+          <div style={{width:1,height:24,background:"#1E1E2E"}}/>
+          <button className="nav-btn" onClick={exportAll} title="Exportar" style={{width:32,height:32,borderRadius:10,background:"#1A1A25",border:"1px solid #4ECDC4",color:"#4ECDC4",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>⬇</button>
+          <label title="Importar" style={{width:32,height:32,borderRadius:10,background:"#1A1A25",border:"1px solid #FF6B35",color:"#FF6B35",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
+            ⬆<input type="file" accept=".json" onChange={importAll} style={{display:"none"}}/>
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+
+  // SETTINGS
+  if (view==="settings") return (
+    <div style={{minHeight:"100vh",background:"#0A0A0F",color:"#E8E8F0"}}>
+      <Header/>
+      <div style={{maxWidth:900,margin:"0 auto",padding:"24px 16px"}}>
+        <div className="card" style={{padding:20,marginBottom:16}}>
+          <div style={{fontSize:13,fontWeight:700,color:"#666",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:16}}>🎨 General</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div>
+              <div style={{fontSize:12,color:"#666",marginBottom:6}}>Nombre de la app</div>
+              <input style={iS} value={appName} onChange={e=>persist({appName:e.target.value})} placeholder="Mi Life OS"/>
+            </div>
+            <div>
+              <div style={{fontSize:12,color:"#666",marginBottom:6}}>Objetivo ahorro mensual ($)</div>
+              <input type="number" style={iS} value={goal} onChange={e=>persist({goal:parseFloat(e.target.value)||0})}/>
+            </div>
+          </div>
+        </div>
+
+        <div style={{display:"flex",gap:8,marginBottom:16}}>
+          {[["habits","🏆 Hábitos"],["income","💰 Ingresos"]].map(([t,l])=>(
+            <button key={t} className="nav-btn" onClick={()=>setStTab(t)} style={{padding:"8px 20px",borderRadius:10,fontSize:13,fontWeight:600,color:stTab===t?"#0A0A0F":"#666",background:stTab===t?"linear-gradient(135deg,#FF6B35,#FF8C5A)":"#1A1A25",border:stTab===t?"none":"1px solid #1E1E2E"}}>{l}</button>
+          ))}
+        </div>
+
+        {stTab==="habits"&&(
+          <div className="fade-in">
+            <div className="card" style={{padding:20,marginBottom:16}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#666",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:16}}>➕ Nuevo hábito</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 90px 110px",gap:10,marginBottom:12,alignItems:"end"}}>
+                <div>
+                  <div style={{fontSize:11,color:"#555",marginBottom:4}}>Nombre</div>
+                  <input style={iS} placeholder="Ej: Meditación" value={newH.label} onChange={e=>setNewH({...newH,label:e.target.value})}
+                    onKeyDown={e=>e.key==="Enter"&&addHabit()}/>
+                </div>
+                <div>
+                  <div style={{fontSize:11,color:"#555",marginBottom:4}}>Emoji</div>
+                  <select style={iS} value={newH.icon} onChange={e=>setNewH({...newH,icon:e.target.value})}>
+                    {EMOJIS.map(e=><option key={e} value={e}>{e} {e}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div style={{fontSize:11,color:"#555",marginBottom:4}}>Color</div>
+                  <select style={iS} value={newH.color} onChange={e=>setNewH({...newH,color:e.target.value})}>
+                    {COLORS.map(c=><option key={c} value={c} style={{background:c,color:"#000"}}>● {c}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <div style={{width:40,height:40,borderRadius:10,background:`${newH.color}25`,border:`2px solid ${newH.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{newH.icon}</div>
+                <button className="nav-btn" onClick={addHabit} style={{padding:"8px 24px",borderRadius:8,background:"linear-gradient(135deg,#FF6B35,#FF8C5A)",color:"#fff",fontWeight:700,fontSize:13}}>+ Añadir hábito</button>
+              </div>
+            </div>
+            <div className="card" style={{padding:20}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#666",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:16}}>Hábitos ({habits.length})</div>
+              {habits.map(h=>(
+                <div key={h.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid #1A1A25"}}>
+                  <div style={{width:36,height:36,borderRadius:10,background:`${h.color}20`,border:`1.5px solid ${h.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{h.icon}</div>
+                  {editH===h.id?(
+                    <div style={{flex:1,display:"grid",gridTemplateColumns:"1fr 80px 100px",gap:8}}>
+                      <input style={iS} value={h.label} onChange={e=>updHabit(h.id,"label",e.target.value)}/>
+                      <select style={iS} value={h.icon} onChange={e=>updHabit(h.id,"icon",e.target.value)}>
+                        {EMOJIS.map(e=><option key={e} value={e}>{e}</option>)}
+                      </select>
+                      <select style={iS} value={h.color} onChange={e=>updHabit(h.id,"color",e.target.value)}>
+                        {COLORS.map(c=><option key={c} value={c} style={{background:c,color:"#000"}}>● {c}</option>)}
+                      </select>
+                    </div>
+                  ):(
+                    <div style={{flex:1}}><span style={{fontSize:14,fontWeight:600,color:h.color}}>{h.label}</span></div>
+                  )}
+                  <button className="nav-btn" onClick={()=>setEditH(editH===h.id?null:h.id)} style={{fontSize:16,color:"#555",padding:"4px 8px"}}>{editH===h.id?"✅":"✏️"}</button>
+                  <button className="nav-btn del-btn" onClick={()=>delHabit(h.id)} style={{fontSize:16,color:"#333",padding:"4px 8px",transition:"color 0.2s"}}>🗑</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {stTab==="income"&&(
+          <div className="fade-in">
+            <div className="card" style={{padding:20,marginBottom:16}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#666",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:16}}>➕ Nueva fuente</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 90px 110px",gap:10,marginBottom:12,alignItems:"end"}}>
+                <div>
+                  <div style={{fontSize:11,color:"#555",marginBottom:4}}>Nombre</div>
+                  <input style={iS} placeholder="Ej: Uber, Freelance..." value={newS.label} onChange={e=>setNewS({...newS,label:e.target.value})}
+                    onKeyDown={e=>e.key==="Enter"&&addSrc()}/>
+                </div>
+                <div>
+                  <div style={{fontSize:11,color:"#555",marginBottom:4}}>Emoji</div>
+                  <select style={iS} value={newS.icon} onChange={e=>setNewS({...newS,icon:e.target.value})}>
+                    {EMOJIS.map(e=><option key={e} value={e}>{e}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div style={{fontSize:11,color:"#555",marginBottom:4}}>Color</div>
+                  <select style={iS} value={newS.color} onChange={e=>setNewS({...newS,color:e.target.value})}>
+                    {COLORS.map(c=><option key={c} value={c} style={{background:c,color:"#000"}}>● {c}</option>)}
+                  </select>
+                </div>
+              </div>
+              <button className="nav-btn" onClick={addSrc} style={{padding:"8px 24px",borderRadius:8,background:"linear-gradient(135deg,#4ECDC4,#45B7D1)",color:"#0A0A0F",fontWeight:700,fontSize:13}}>+ Añadir fuente</button>
+            </div>
+            <div className="card" style={{padding:20}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#666",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:16}}>Fuentes ({incSrc.length})</div>
+              {incSrc.map(s=>(
+                <div key={s.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid #1A1A25"}}>
+                  <div style={{width:36,height:36,borderRadius:10,background:`${s.color}20`,border:`1.5px solid ${s.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{s.icon}</div>
+                  {editS===s.id?(
+                    <div style={{flex:1,display:"grid",gridTemplateColumns:"1fr 80px 100px",gap:8}}>
+                      <input style={iS} value={s.label} onChange={e=>updSrc(s.id,"label",e.target.value)}/>
+                      <select style={iS} value={s.icon} onChange={e=>updSrc(s.id,"icon",e.target.value)}>
+                        {EMOJIS.map(e=><option key={e} value={e}>{e}</option>)}
+                      </select>
+                      <select style={iS} value={s.color} onChange={e=>updSrc(s.id,"color",e.target.value)}>
+                        {COLORS.map(c=><option key={c} value={c} style={{background:c,color:"#000"}}>● {c}</option>)}
+                      </select>
+                    </div>
+                  ):(
+                    <div style={{flex:1}}><span style={{fontSize:14,fontWeight:600,color:s.color}}>{s.label}</span></div>
+                  )}
+                  <button className="nav-btn" onClick={()=>setEditS(editS===s.id?null:s.id)} style={{fontSize:16,color:"#555",padding:"4px 8px"}}>{editS===s.id?"✅":"✏️"}</button>
+                  <button className="nav-btn del-btn" onClick={()=>delSrc(s.id)} style={{fontSize:16,color:"#333",padding:"4px 8px",transition:"color 0.2s"}}>🗑</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{minHeight:"100vh",background:"#0A0A0F",color:"#E8E8F0"}}>
+      <Header/>
+      <div style={{maxWidth:900,margin:"0 auto",padding:"24px 16px"}}>
+
+        {/* DAILY */}
+        {view==="daily"&&(
+          <div className="fade-in">
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:24}}>
+              <button className="nav-btn" onClick={()=>{const d=new Date(selDate);d.setDate(d.getDate()-1);setSelDate(fmtDate(d));}} style={{width:36,height:36,borderRadius:10,background:"#1A1A25",border:"1px solid #1E1E2E",color:"#aaa",fontSize:18}}>‹</button>
+              <div style={{flex:1,textAlign:"center"}}>
+                <div style={{fontSize:18,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif"}}>{new Date(selDate+"T12:00:00").toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"})}</div>
+                {selDate===today&&<div style={{fontSize:11,color:"#FF6B35",fontWeight:600,marginTop:2}}>● HOY</div>}
+              </div>
+              <button className="nav-btn" onClick={()=>{const d=new Date(selDate);d.setDate(d.getDate()+1);setSelDate(fmtDate(d));}} style={{width:36,height:36,borderRadius:10,background:"#1A1A25",border:"1px solid #1E1E2E",color:"#aaa",fontSize:18}}>›</button>
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:24}}>
+              {[{l:"Hábitos",v:`${dHabits}/${habits.length}`,c:"#FF6B35",i:"✅"},{l:"Ingresos",v:`$${dIncTot.toFixed(0)}`,c:"#4ECDC4",i:"💰"},{l:"Gastos",v:`$${dExpTot.toFixed(0)}`,c:"#96CEB4",i:"💸"}].map(s=>(
+                <div key={s.l} className="card" style={{padding:16,textAlign:"center"}}>
+                  <div style={{fontSize:20,marginBottom:6}}>{s.i}</div>
+                  <div style={{fontSize:22,fontWeight:700,color:s.c,fontFamily:"'Space Grotesk',sans-serif"}}>{s.v}</div>
+                  <div style={{fontSize:11,color:"#555",marginTop:2}}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="card" style={{padding:20,marginBottom:16}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#666",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:16}}>Hábitos del día</div>
+              {habits.length===0&&<div style={{textAlign:"center",color:"#444",fontSize:13,padding:20}}>Sin hábitos configurados — ve a ⚙️ para añadir</div>}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                {habits.map(h=>{
+                  const done=dayD.habits?.[h.id];
+                  return (
+                    <button key={h.id} className="habit-btn" onClick={()=>toggleHabit(selDate,h.id)}
+                      style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,background:done?`${h.color}18`:"#0D0D15",border:`1.5px solid ${done?h.color:"#1E1E2E"}`,color:done?h.color:"#555"}}>
+                      <span style={{fontSize:18}}>{h.icon}</span>
+                      <span style={{fontSize:13,fontWeight:600,flex:1,textAlign:"left"}}>{h.label}</span>
+                      <div style={{width:20,height:20,borderRadius:6,background:done?h.color:"transparent",border:`2px solid ${done?h.color:"#333"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#0A0A0F",fontWeight:700}}>{done?"✓":""}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="card glow-teal" style={{padding:20,marginBottom:16}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                <div style={{fontSize:13,fontWeight:700,color:"#666",letterSpacing:"0.1em",textTransform:"uppercase"}}>💰 Ingresos</div>
+                <button className="nav-btn" onClick={()=>setAddInc(!addInc)} style={{padding:"6px 14px",borderRadius:8,background:"#4ECDC418",border:"1.5px solid #4ECDC4",color:"#4ECDC4",fontSize:12,fontWeight:700}}>+ Añadir</button>
+              </div>
+              {addInc&&(
+                <div style={{background:"#0D0D15",borderRadius:12,padding:16,marginBottom:16,border:"1px solid #1E1E2E"}}>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+                    <select value={incForm.source||incSrc[0]?.id||""} onChange={e=>setIncForm({...incForm,source:e.target.value})} style={{background:"#1A1A25",border:"1px solid #333",borderRadius:8,padding:"8px 12px",color:"#E8E8F0",fontSize:13}}>
+                      {incSrc.map(s=><option key={s.id} value={s.id}>{s.icon} {s.label}</option>)}
+                    </select>
+                    <input type="number" placeholder="Cantidad $" value={incForm.amount} onChange={e=>setIncForm({...incForm,amount:e.target.value})} style={{background:"#1A1A25",border:"1px solid #333",borderRadius:8,padding:"8px 12px",color:"#E8E8F0",fontSize:13}}/>
+                  </div>
+                  <input type="text" placeholder="Nota (opcional)" value={incForm.note} onChange={e=>setIncForm({...incForm,note:e.target.value})} style={{width:"100%",background:"#1A1A25",border:"1px solid #333",borderRadius:8,padding:"8px 12px",color:"#E8E8F0",fontSize:13,marginBottom:10}}/>
+                  <div style={{display:"flex",gap:8}}>
+                    <button className="nav-btn" onClick={doAddInc} style={{flex:1,padding:"8px",borderRadius:8,background:"#4ECDC4",color:"#0A0A0F",fontWeight:700,fontSize:13}}>Guardar</button>
+                    <button className="nav-btn" onClick={()=>setAddInc(false)} style={{padding:"8px 16px",borderRadius:8,background:"#1A1A25",color:"#666",fontSize:13}}>Cancelar</button>
+                  </div>
+                </div>
+              )}
+              {(dayD.incomes||[]).length===0&&!addInc&&<div style={{textAlign:"center",color:"#333",fontSize:13,padding:"12px 0"}}>Sin ingresos registrados</div>}
+              {(dayD.incomes||[]).map(inc=>{
+                const s=incSrc.find(x=>x.id===inc.source)||{icon:"💰",label:inc.source,color:"#4ECDC4"};
+                return (
+                  <div key={inc.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid #1A1A25"}}>
+                    <span style={{fontSize:18}}>{s.icon}</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:13,fontWeight:600,color:s.color}}>{s.label}</div>
+                      {inc.note&&<div style={{fontSize:11,color:"#555"}}>{inc.note}</div>}
+                    </div>
+                    <div style={{fontSize:16,fontWeight:700,color:"#4ECDC4"}}>${inc.amount.toFixed(2)}</div>
+                    <button className="nav-btn" onClick={()=>delInc(selDate,inc.id)} style={{color:"#333",fontSize:16,padding:"0 4px"}}>×</button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="card glow-orange" style={{padding:20}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                <div style={{fontSize:13,fontWeight:700,color:"#666",letterSpacing:"0.1em",textTransform:"uppercase"}}>💸 Gastos</div>
+                <button className="nav-btn" onClick={()=>setAddExp(!addExp)} style={{padding:"6px 14px",borderRadius:8,background:"#FF6B3518",border:"1.5px solid #FF6B35",color:"#FF6B35",fontSize:12,fontWeight:700}}>+ Añadir</button>
+              </div>
+              {addExp&&(
+                <div style={{background:"#0D0D15",borderRadius:12,padding:16,marginBottom:16,border:"1px solid #1E1E2E"}}>
+                  <input type="number" placeholder="Cantidad $" value={expForm.amount} onChange={e=>setExpForm({...expForm,amount:e.target.value})} style={{width:"100%",background:"#1A1A25",border:"1px solid #333",borderRadius:8,padding:"8px 12px",color:"#E8E8F0",fontSize:13,marginBottom:10}}/>
+                  <input type="text" placeholder="Nota (opcional)" value={expForm.note} onChange={e=>setExpForm({...expForm,note:e.target.value})} style={{width:"100%",background:"#1A1A25",border:"1px solid #333",borderRadius:8,padding:"8px 12px",color:"#E8E8F0",fontSize:13,marginBottom:10}}/>
+                  <div style={{display:"flex",gap:8}}>
+                    <button className="nav-btn" onClick={doAddExp} style={{flex:1,padding:"8px",borderRadius:8,background:"#FF6B35",color:"#fff",fontWeight:700,fontSize:13}}>Guardar</button>
+                    <button className="nav-btn" onClick={()=>setAddExp(false)} style={{padding:"8px 16px",borderRadius:8,background:"#1A1A25",color:"#666",fontSize:13}}>Cancelar</button>
+                  </div>
+                </div>
+              )}
+              {(dayD.expenses||[]).length===0&&!addExp&&<div style={{textAlign:"center",color:"#333",fontSize:13,padding:"12px 0"}}>Sin gastos registrados</div>}
+              {(dayD.expenses||[]).map(exp=>(
+                <div key={exp.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid #1A1A25"}}>
+                  <span style={{fontSize:18}}>💸</span>
+                  <div style={{flex:1}}>{exp.note?<span style={{fontSize:13,color:"#888"}}>{exp.note}</span>:<span style={{fontSize:13,color:"#555"}}>Gasto</span>}</div>
+                  <div style={{fontSize:16,fontWeight:700,color:"#FF6B6B"}}>-${exp.amount.toFixed(2)}</div>
+                  <button className="nav-btn" onClick={()=>delExp(selDate,exp.id)} style={{color:"#333",fontSize:16,padding:"0 4px"}}>×</button>
+                </div>
+              ))}
+              {(dayD.expenses||[]).length>0&&(
+                <div style={{display:"flex",justifyContent:"space-between",marginTop:12,paddingTop:12,borderTop:"1px solid #1E1E2E"}}>
+                  <span style={{fontSize:13,color:"#666"}}>Balance del día</span>
+                  <span style={{fontSize:16,fontWeight:700,color:dIncTot-dExpTot>=0?"#4ECDC4":"#FF6B6B"}}>{dIncTot-dExpTot>=0?"+":""}${(dIncTot-dExpTot).toFixed(2)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* WEEKLY */}
+        {view==="weekly"&&(
+          <div className="fade-in">
+            <div style={{marginBottom:20,textAlign:"center"}}>
+              <div style={{fontSize:13,color:"#555",marginBottom:4}}>Semana del</div>
+              <div style={{fontSize:18,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif"}}>
+                {new Date(wDates[0]+"T12:00:00").toLocaleDateString("es-ES",{day:"numeric",month:"short"})} — {new Date(wDates[6]+"T12:00:00").toLocaleDateString("es-ES",{day:"numeric",month:"short"})}
+              </div>
+            </div>
+            <div className="card" style={{padding:20,marginBottom:16,overflowX:"auto"}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#666",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:16}}>Hábitos semanales</div>
+              <table style={{width:"100%",borderCollapse:"collapse",minWidth:460}}>
+                <thead>
+                  <tr>
+                    <th style={{textAlign:"left",padding:"6px 8px",fontSize:12,color:"#555",fontWeight:600}}>Hábito</th>
+                    {wDates.map(d=>(
+                      <th key={d} style={{textAlign:"center",padding:"6px 4px",fontSize:11,color:d===today?"#FF6B35":"#555",fontWeight:d===today?700:400}}>
+                        <div>{DAYS[new Date(d+"T12:00:00").getDay()]}</div>
+                        <div style={{fontSize:13,fontWeight:600}}>{new Date(d+"T12:00:00").getDate()}</div>
+                      </th>
+                    ))}
+                    <th style={{textAlign:"center",padding:"6px 8px",fontSize:11,color:"#555"}}>%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {habits.map(h=>{
+                    const days=wDates.map(d=>({date:d,done:trackData[d]?.habits?.[h.id]||false}));
+                    const wr=Math.round((days.filter(d=>d.done).length/7)*100);
+                    return (
+                      <tr key={h.id}>
+                        <td style={{padding:"8px",fontSize:13,whiteSpace:"nowrap"}}><span>{h.icon}</span> <span style={{color:"#888"}}>{h.label}</span></td>
+                        {days.map(d=>(
+                          <td key={d.date} style={{textAlign:"center",padding:"6px 4px"}}>
+                            <div style={{width:26,height:26,borderRadius:8,background:d.done?`${h.color}25`:"#0D0D15",border:`1.5px solid ${d.done?h.color:"#1E1E2E"}`,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto",fontSize:12,color:h.color}}>{d.done?"✓":""}</div>
+                          </td>
+                        ))}
+                        <td style={{textAlign:"center",padding:"6px 8px"}}><span style={{fontSize:12,fontWeight:700,color:wr>=80?"#4ECDC4":wr>=50?"#FFEAA7":"#FF6B6B"}}>{wr}%</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              {["income","expense"].map(type=>{
+                const total=wDates.reduce((sum,d)=>{const dy=trackData[d]||{};return sum+(type==="income"?(dy.incomes||[]):(dy.expenses||[])).reduce((s,x)=>s+x.amount,0);},0);
+                return (
+                  <div key={type} className="card" style={{padding:20}}>
+                    <div style={{fontSize:12,color:"#555",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:8}}>{type==="income"?"💰 Ingresos":"💸 Gastos"}</div>
+                    <div style={{fontSize:28,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif",color:type==="income"?"#4ECDC4":"#FF6B6B"}}>${total.toFixed(0)}</div>
+                    <div style={{fontSize:12,color:"#444",marginTop:4}}>esta semana</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* MONTHLY */}
+        {view==="monthly"&&(
+          <div className="fade-in">
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:24}}>
+              <button className="nav-btn" onClick={()=>{if(curMonth===0){setCurMonth(11);setCurYear(y=>y-1);}else setCurMonth(m=>m-1);}} style={{width:36,height:36,borderRadius:10,background:"#1A1A25",border:"1px solid #1E1E2E",color:"#aaa",fontSize:18}}>‹</button>
+              <div style={{flex:1,textAlign:"center",fontSize:20,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif"}}>{MONTHS[curMonth]} {curYear}</div>
+              <button className="nav-btn" onClick={()=>{if(curMonth===11){setCurMonth(0);setCurYear(y=>y+1);}else setCurMonth(m=>m+1);}} style={{width:36,height:36,borderRadius:10,background:"#1A1A25",border:"1px solid #1E1E2E",color:"#aaa",fontSize:18}}>›</button>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:20}}>
+              {[{l:"Ingresos",v:mInc,c:"#4ECDC4",i:"💰"},{l:"Gastos",v:mExp,c:"#FF6B6B",i:"💸"},{l:"Ahorro",v:mSav,c:mSav>=0?"#96CEB4":"#FF6B6B",i:"🏦"}].map(s=>(
+                <div key={s.l} className="card" style={{padding:16,textAlign:"center"}}>
+                  <div style={{fontSize:20,marginBottom:6}}>{s.i}</div>
+                  <div style={{fontSize:20,fontWeight:700,color:s.c,fontFamily:"'Space Grotesk',sans-serif"}}>${Math.abs(s.v).toFixed(0)}</div>
+                  <div style={{fontSize:11,color:"#555",marginTop:2}}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+            <div className="card" style={{padding:20,marginBottom:16}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                <div style={{fontSize:13,fontWeight:700,color:"#666",textTransform:"uppercase",letterSpacing:"0.1em"}}>🎯 Objetivo de ahorro</div>
+                <div style={{fontSize:13,fontWeight:700,color:"#FFEAA7"}}>${mSav.toFixed(0)} / ${goal}</div>
+              </div>
+              <div style={{background:"#0D0D15",borderRadius:999,height:10,overflow:"hidden"}}>
+                <div style={{height:"100%",borderRadius:999,background:"linear-gradient(90deg,#4ECDC4,#45B7D1)",width:`${Math.min(100,Math.max(0,(mSav/goal)*100))}%`,transition:"width 0.5s ease"}}/>
+              </div>
+              <div style={{fontSize:11,color:"#555",marginTop:8,textAlign:"right"}}>{Math.round((mSav/goal)*100)}% del objetivo</div>
+            </div>
+            <div className="card" style={{padding:20,marginBottom:16}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#666",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:16}}>Calendario</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:8}}>
+                {DAYS.map(d=><div key={d} style={{textAlign:"center",fontSize:11,color:"#444",fontWeight:600,padding:"4px 0"}}>{d}</div>)}
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
+                {Array.from({length:fDay},(_,i)=><div key={`e${i}`}/>)}
+                {Array.from({length:dInMon},(_,i)=>{
+                  const ds=fmtDate(new Date(curYear,curMonth,i+1));
+                  const d=trackData[ds]||{};
+                  const comp=habits.filter(h=>d.habits?.[h.id]).length;
+                  const rate=habits.length>0?comp/habits.length:0;
+                  const isT=ds===today;
+                  return (
+                    <div key={ds} className="cal-day" onClick={()=>{setSelDate(ds);setView("daily");}}
+                      style={{aspectRatio:"1",borderRadius:10,background:isT?"#FF6B3518":"#0D0D15",border:`1.5px solid ${isT?"#FF6B35":"#1A1A25"}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,cursor:"pointer"}}>
+                      <div style={{fontSize:13,fontWeight:isT?700:400,color:isT?"#FF6B35":"#aaa"}}>{i+1}</div>
+                      {comp>0&&<div style={{width:"60%",height:3,borderRadius:999,background:"linear-gradient(90deg,#FF6B35,#4ECDC4)",opacity:rate}}/>}
+                      <div style={{display:"flex",gap:2}}>
+                        {(d.incomes||[]).length>0&&<div style={{width:4,height:4,borderRadius:999,background:"#4ECDC4"}}/>}
+                        {(d.expenses||[]).length>0&&<div style={{width:4,height:4,borderRadius:999,background:"#FF6B6B"}}/>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{display:"flex",gap:16,marginTop:12,fontSize:11,color:"#444"}}>
+                <span>🟠 Hábitos</span><span style={{color:"#4ECDC4"}}>● Ingresos</span><span style={{color:"#FF6B6B"}}>● Gastos</span>
+              </div>
+            </div>
+            <div className="card" style={{padding:20,marginBottom:16}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#666",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:16}}>Hábitos del mes</div>
+              {habits.map(h=>{
+                const r=hRate(h.id);
+                return (
+                  <div key={h.id} style={{marginBottom:12}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                      <span style={{fontSize:13,color:"#888"}}>{h.icon} {h.label}</span>
+                      <span style={{fontSize:12,fontWeight:700,color:r>=80?"#4ECDC4":r>=50?"#FFEAA7":"#FF6B6B"}}>{r}%</span>
+                    </div>
+                    <div style={{background:"#0D0D15",borderRadius:999,height:6,overflow:"hidden"}}>
+                      <div style={{height:"100%",borderRadius:999,background:r>=80?"#4ECDC4":r>=50?"#FFEAA7":"#FF6B35",width:`${r}%`,transition:"width 0.5s ease"}}/>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {mExp>0&&(
+              <div className="card" style={{padding:20}}>
+                <div style={{fontSize:13,fontWeight:700,color:"#666",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:16}}>Gastos por día</div>
+                <div style={{display:"flex",alignItems:"flex-end",gap:3,height:80,paddingBottom:8}}>
+                  {dExp.map(d=>{
+                    const mx=Math.max(...dExp.map(x=>x.total),1);
+                    const h=d.total>0?Math.max(6,(d.total/mx)*70):0;
+                    const isT=d.date===today;
+                    return (
+                      <div key={d.date} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,minWidth:22,flex:1}}>
+                        <div style={{width:"100%",height:h,borderRadius:"4px 4px 0 0",background:isT?"#FF6B35":d.total>0?"#FF6B6B88":"transparent"}}/>
+                        <div style={{fontSize:9,color:isT?"#FF6B35":"#444",fontWeight:isT?700:400}}>{d.day}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.render(<App/>, document.getElementById("root"));
+</script>
+</body>
+</html>
